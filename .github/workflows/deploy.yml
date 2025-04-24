@@ -1,0 +1,52 @@
+name: Deploy Full Stack App
+ 
+on:
+  push:
+    branches:
+      - feature/gemini-integration  # Trigger on pushes to the `feature/gemini-integration` branch. You can change this if needed.
+ 
+jobs:
+  deploy:
+    runs-on: ubuntu-latest  # The OS runner GitHub Actions will use
+ 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3  # Pulls your code from GitHub
+ 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2  # Sets up Docker buildx for building multi-platform image
+ 
+      - name: 🚀 Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            # Define the path where your app will be on the server
+            #!/bin/bash
+ 
+            APP_DIR="/home/ubuntu/my-app"
+ 
+            # Remove the existing my-app directory if it exists
+            if [ -d "$APP_DIR" ]; then
+              echo "Removing existing directory: $APP_DIR"
+              rm -rf $APP_DIR
+            fi
+ 
+            # Clone the specific branch directly into the app directory
+            git clone -b feature/gemini-integration https://github.com/BharathkumarRG/Test-Env.git $APP_DIR
+ 
+            # Navigate to the app directory
+            cd $APP_DIR
+ 
+            # Clean up old Docker containers and images
+            docker container prune -f
+            docker image prune -a -f
+            docker volume prune -f
+            # Navigate to directory containing docker-compose.yml if not in root
+            # cd deploy  # Uncomment and set correct path if needed
+
+            # Use Docker Compose to rebuild and restart
+            docker compose down
+            docker compose up --build -d
